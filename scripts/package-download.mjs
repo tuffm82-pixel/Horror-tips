@@ -15,7 +15,7 @@ for(const [tag,url] of [...html.matchAll(/<link\b[^>]*href="([^"]+\.css)"[^>]*>/
 }
 // A local file cannot use Vite's preload polyfill to fetch relative modules.
 html=html.replace(/<link\b[^>]*rel="modulepreload"[^>]*>/g,'');
-const instructions=`HORROR TIPS — DOWNLOAD EDITION\r\n\r\nExtract this ZIP, then double-click Horror Tips.html to play the campaign in Chrome, Edge, or Firefox. No installation or Node.js required.\r\n\r\nWASD: move | Mouse: look | Shift: sprint | F: torch | Space: interact | Escape: pause\r\n\r\nThe campaign works offline. Fonts may fall back when offline; the game remains playable. Voices depend on the browser.\r\nMultiplayer needs the separately hosted Node server; enter its wss:// address in the multiplayer lobby.\r\n\r\nSource and server instructions: https://github.com/tuffm82-pixel/Horror-tips\r\n`;
+const instructions=`HORROR TIPS — DOWNLOAD EDITION\r\n\r\nExtract this ZIP, then double-click Horror Tips.html to play the campaign in Chrome, Edge, or Firefox. No installation or Node.js required.\r\n\r\nWASD: move | Mouse drag or Q/E or Left/Right: turn | Shift: sprint | F: torch | Space: interact | Escape: pause\r\n\r\nThe campaign works offline. Fonts may fall back when offline; the game remains playable. Voices depend on the browser.\r\nMultiplayer needs the separately hosted Node server; enter its wss:// address in the multiplayer lobby.\r\n\r\nSource and server instructions: https://github.com/tuffm82-pixel/Horror-tips\r\n`;
 function crc32(data){let c=0xffffffff;for(const n of data){c^=n;for(let i=0;i<8;i++)c=(c>>>1)^((c&1)?0xedb88320:0);}return (c^0xffffffff)>>>0;}
 // Standard ZIP with DEFLATE, UTF-8 filenames and a central directory.
 const entries=[['Horror Tips.html',html],['START HERE.txt',instructions]];

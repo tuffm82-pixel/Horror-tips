@@ -8,6 +8,14 @@ For the download, extract the ZIP and open **Horror Tips.html**. The campaign ne
 
 A first-person browser horror game about a game of tips that continues after the school bell. Explore a night-time school, meet the spinner, learn the rules, and survive branching chase sequences. The creature and characters are original fictional designs. Attacks use atmosphere and cutaways rather than graphic injury.
 
+## Animated campaign expansion
+
+The spinner now points around a circle of players and selects a different person; the selected player transforms while the spinner stays human. Articulated rigs have keyframed idle, walk, run, pointing, recoil, grabbed, fall, stalking and lunging poses. Encounters use non-graphic struggle and shadow cutaways.
+
+After the blue-wall encounter, walk through the gate, witness the creature charge and disappear on the street, return to the office, take the chalk mark, and sprint to the gate before the last bell ends. A compass and distance marker guide free exploration. School and street props add classroom notices, canteen details, lockers, gardens, sports equipment, road markings, suburban silhouettes and an escarpment skyline. All current models are authored locally; no Tripo-generated assets or paid generation tasks are included.
+
+Turn with mouse drag, mouse capture, **Left/Right arrows** or **Q/E**. WASD moves and strafes; Up/Down arrows move forward/back. On touchscreens, swipe the scene to look, use the turning buttons, and toggle RUN for sprinting.
+
 ## Horror atmosphere update
 
 The current build adds a darker night scene, shadow-casting torch, weathered materials, wet ground, organic foliage, rounded figures, a more detailed creature, spatial stereo cues, and dialogue-synchronized encounters. Pause/retry, checkpoint timing, touch look, and wall-aware multiplayer tags are covered by regression checks. The school remains an approximate fictional environment pending reference photos.
@@ -37,7 +45,7 @@ Open `http://localhost:3000`. `PORT` can override the production server port. Ru
 - Campaign follows the invitation, spinner, frozen feet, transformation and twenty-second hiding countdown, then branches through the bathroom, ovals, court and blue wall.
 - Timing challenges use the on-screen action control; the oval balance challenge uses a held input.
 - Multiplayer uses room codes and a shared tag round. Players need to connect to the same running server.
-- Use WASD to move, Shift to sprint and the mouse to look. Click the game view to capture the mouse; Escape releases it. Touch controls are available on screen.
+- Use WASD to move, Shift to sprint, Q/E or Left/Right arrows to turn, and the mouse to look. Click the game view to capture the mouse; Escape releases it. Touch controls are available on screen.
 - Dialogue stays visible in captions. Browser speech synthesis supplies optional voiceover; available voices depend on the device. The ambient soundscape is synthesized locally after a player gesture.
 
 ## Hosting

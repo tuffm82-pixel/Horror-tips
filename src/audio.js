@@ -1,7 +1,7 @@
 /** Procedural stereo night soundscape. No remote assets or autoplay audio. */
 export class AudioDirector {
   constructor() {
-    Object.assign(this, { volume: 0.65, voice: true, threat: 0, paused: false, scene: 'menu', context: null, nodes: [], timer: null, lastBeat: -10, lastStep: -10, lastSting: -10, lastThreatUpdate: -10, appliedThreat: -1, nextAmbient: 8, nextBreath: 0, foot: 1, lastSpoken: '', lastSpokenAt: -10 });
+    Object.assign(this, { volume: 0.65, voice: true, threat: 0, paused: false, scene: 'menu', context: null, nodes: [], timer: null, lastBeat: -10, lastStep: -10, lastSting: -10, lastThreatUpdate: -10, appliedThreat: -1, nextAmbient: 8, nextBreath: 0, foot: 1, lastSpoken: '', lastSpokenAt: -10, hushUntil:0 });
     this.transients = new Set();
     this.cooldowns = new Map();
   }
@@ -26,7 +26,8 @@ export class AudioDirector {
     this.master.connect(limiter).connect(ctx.destination);
     this.bed = ctx.createGain();
     this.bed.connect(this.master);
-    this.nodes.push(this.master, limiter, this.bed);
+    this.airLevel=ctx.createGain();this.airLevel.connect(this.bed);
+    this.nodes.push(this.master, limiter, this.bed,this.airLevel);
     this.noiseBuffer = ctx.createBuffer(1, ctx.sampleRate * 5, ctx.sampleRate);
     this.whiteBuffer = ctx.createBuffer(1, ctx.sampleRate * 5, ctx.sampleRate);
     const brown = this.noiseBuffer.getChannelData(0), white = this.whiteBuffer.getChannelData(0);
@@ -48,6 +49,18 @@ export class AudioDirector {
       osc.frequency.value = frequency;
       osc.connect(this.droneLevel); osc.start(); this.nodes.push(osc);
     }
+    // Low traffic is synthesized locally. Indoors it gives way to a quiet
+    // fluorescent mains hum; the event cues remain separate from these beds.
+    this.trafficLevel=ctx.createGain();this.trafficLevel.connect(this.bed);
+    const traffic=ctx.createBufferSource(),trafficFilter=ctx.createBiquadFilter();
+    traffic.buffer=this.noiseBuffer;traffic.loop=true;traffic.playbackRate.value=.65;
+    trafficFilter.type='lowpass';trafficFilter.frequency.value=170;
+    traffic.connect(trafficFilter).connect(this.trafficLevel);traffic.start();
+    this.roomLevel=ctx.createGain();this.roomLevel.connect(this.bed);
+    const roomHum=ctx.createOscillator();roomHum.frequency.value=100;
+    roomHum.connect(this.roomLevel);roomHum.start();
+    this.nodes.push(this.trafficLevel,traffic,trafficFilter,this.roomLevel,roomHum);
+    this.applySceneAmbience();
     this.nextAmbient = ctx.currentTime + 6 + Math.random() * 7;
     this.nextBreath = ctx.currentTime + 2;
     this.timer = setInterval(() => this.pulse(), 100);
@@ -57,7 +70,7 @@ export class AudioDirector {
     source.buffer = buffer; source.loop = true; source.playbackRate.value = 0.8 + Math.random() * 0.3;
     filter.type = type; filter.frequency.value = frequency; filter.Q.value = 0.6;
     gain.gain.value = level; panner.pan.value = pan;
-    source.connect(filter).connect(gain).connect(panner).connect(this.bed);
+    source.connect(filter).connect(gain).connect(panner).connect(this.airLevel);
     const lfo = ctx.createOscillator(), depth = ctx.createGain(), filterDepth = ctx.createGain();
     lfo.frequency.value = speed; depth.gain.value = level * 0.5; filterDepth.gain.value = frequency * 0.25;
     lfo.connect(depth).connect(gain.gain); lfo.connect(filterDepth).connect(filter.frequency);
@@ -67,7 +80,7 @@ export class AudioDirector {
   setVolume(value) {
     this.volume = Math.max(0, Math.min(1, Number(value) || 0));
     this.applyMaster();
-    if (!this.volume) window.speechSynthesis?.cancel();
+    if (!this.volume) {this.stopTransients();window.speechSynthesis?.cancel();}
   }
   applyMaster() {
     if (!this.context || !this.master) return;
@@ -84,7 +97,7 @@ export class AudioDirector {
     if (paused === this.paused) return;
     this.paused = paused; this.applyMaster();
     const synth = window.speechSynthesis;
-    if (paused) synth?.pause();
+    if (paused) {this.stopTransients();synth?.pause();}
     else {
       if (this.voice && this.volume) synth?.resume();
       const now = this.context?.currentTime || 0;
@@ -95,9 +108,17 @@ export class AudioDirector {
     const scene = String(name || 'menu');
     if (scene === this.scene) return;
     this.scene = scene; this.nextAmbient = (this.context?.currentTime || 0) + 5 + Math.random() * 7;
+    this.applySceneAmbience();
     if (['transform', 'chase'].includes(scene)) this.cue('growl');
     else if (scene === 'bathroom') this.cue('creak');
     else if (scene === 'ending') this.cue('bell');
+  }
+  applySceneAmbience(){
+    const ctx=this.context;if(!ctx||!this.airLevel)return;
+    const indoor=['bathroom','office'].includes(this.scene),street=['street','outside'].includes(this.scene);
+    const values=[[this.airLevel,indoor?.18:this.scene==='vanish'?.35:street?.9:1],[this.trafficLevel,this.scene==='street'?.018:this.scene==='outside'?.008:0],[this.roomLevel,indoor?.0025:0]];
+    for(const [node,value]of values){node.gain.cancelScheduledValues(ctx.currentTime);node.gain.setTargetAtTime(value,ctx.currentTime,.7);}
+    this.appliedThreat=-1;this.lastThreatUpdate=-10;this.setThreat(this.threat);
   }
   setThreat(value) {
     this.threat = Math.max(0, Math.min(1, Number(value) || 0));
@@ -111,10 +132,11 @@ export class AudioDirector {
   pulse() {
     const ctx = this.context;
     if (!this.canPlay()) return;
-    const now = ctx.currentTime, talking = Boolean(window.speechSynthesis?.speaking), bedVolume = talking ? 0.55 : 1;
+    const now = ctx.currentTime, talking = Boolean(window.speechSynthesis?.speaking), bedVolume = (talking ? 0.55 : 1)*(now<this.hushUntil?.035:1);
     if (bedVolume !== this.bedVolume) {
       this.bedVolume = bedVolume; this.bed.gain.setTargetAtTime(bedVolume, now, 0.25);
     }
+    if(now<this.hushUntil)return;
     if (this.threat > 0.12 && now - this.lastBeat >= 1.12 - this.threat * 0.58) {
       this.lastBeat = now;
       this.tone(51, 0.15, 0.07 * this.threat, now); this.tone(42, 0.12, 0.04 * this.threat, now + 0.17);
@@ -125,12 +147,16 @@ export class AudioDirector {
     if (now >= this.nextAmbient) {
       this.nextAmbient = now + 10 + Math.random() * 15;
       if (!talking && this.threat < 0.75) {
-        const options = this.scene === 'bathroom' ? ['creak', 'crackle', 'distantSteps'] : ['rustle', 'distantSteps', 'creak', 'rustle', 'bell', 'crackle'];
+        const options = this.scene === 'bathroom' ? ['creak', 'crackle', 'distantSteps'] : this.scene==='office'?['creak','crackle','whisper']:this.scene==='street'?['rustle','siren','footstepsbehind']:this.scene==='outside'?['gate','rustle','distantSteps']:this.scene==='vanish'?['whisper','crackle']:['rustle', 'distantSteps', 'creak', 'rustle', 'bell', 'crackle'];
         this.cue(options[Math.floor(Math.random() * options.length)]);
       }
     }
   }
   canPlay() { return this.context?.state === 'running' && !this.paused && this.volume > 0; }
+  stopTransients(){
+    for(const group of this.transients){try{group[0].stop();}catch{/* A completed source is already stopped. */}for(const node of group)node.disconnect();}
+    this.transients.clear();
+  }
   transient(source, nodes, when, duration) {
     const group = [source, ...nodes]; this.transients.add(group);
     source.onended = () => { for (const node of group) node.disconnect(); this.transients.delete(group); };
@@ -186,12 +212,45 @@ export class AudioDirector {
     if (!this.canPlay()) return;
     // The narrative uses "book" for the same quiet paper/PA cue as rule narration.
     // Normalize before the cooldown so a book opening and its line do not double up.
-    if (name === 'book') name = 'rule';
-    const now = this.context.currentTime, cooldown = name === 'bell' ? 45 : name === 'growl' ? 8 : name === 'rule' ? 2 : 5;
+    name=({book:'rule',suddenstop:'vanish',creaturevanish:'vanish',footstepsbehind:'footstepsbehind',powercut:'powercut'})[String(name).toLowerCase()]||name;
+    const now = this.context.currentTime, cooldown = ({bell:45,growl:8,rule:2,gate:8,charge:5,vanish:5,grab:4,struggle:3,impact:.65,whisper:10,siren:18,footstepsbehind:4,powercut:6})[name]??5;
     if (now - (this.cooldowns.get(name) ?? -100) < cooldown) return;
     this.cooldowns.set(name, now);
     const pan = (Math.random() < 0.5 ? -1 : 1) * (0.45 + Math.random() * 0.4);
-    if (['rustle', 'paper', 'rule'].includes(name)) {
+    if(name==='vanish'||name==='powercut'){
+      // Stop the charge's not-yet-played steps before creating the withdrawal.
+      this.stopTransients();this.hushUntil=now+(name==='powercut'?2.8:1.25);
+      this.bedVolume=.035;this.bed.gain.cancelScheduledValues(now);this.bed.gain.setTargetAtTime(.035,now,.035);
+      this.noise(name==='powercut'?.07:.45,name==='powercut'?.016:.014,{frequency:name==='powercut'?1900:1200,endFrequency:150,pan:name==='powercut'?0:-pan});
+      this.tone(name==='powercut'?105:130,.65,.014,now,{endFrequency:32,pan:0});
+    }else if(name==='gate'){
+      this.tone(260,1.45,.013,now,{type:'triangle',endFrequency:82,pan});
+      this.tone(395,.95,.006,now+.12,{endFrequency:141,pan:-pan*.4});
+      this.noise(.55,.018,{frequency:680,q:2.4,attack:.08,pan});
+      this.noise(.14,.018,{frequency:310,delay:.75,pan});
+    }else if(name==='charge'||name==='footstepsbehind'){
+      const charge=name==='charge',count=charge?7:4;
+      for(let i=0;i<count;i++){
+        const delay=charge?i*.23-i*i*.005:i*.39;
+        const side=(i%2?1:-1)*(charge?.32:.58);
+        this.noise(.13,(charge?.018:.01)+i*.001,{frequency:charge?460:620,delay,pan:side,brown:true});
+        this.tone(charge?58:76,.14,charge?.018:.01,now+delay,{endFrequency:charge?34:53,pan:side});
+      }
+      if(charge)this.noise(1.5,.022,{frequency:250,endFrequency:650,attack:.5,pan:0,brown:true});
+    }else if(name==='grab'||name==='struggle'||name==='impact'){
+      const struggle=name==='struggle';
+      this.noise(struggle?.8:.2,struggle?.023:.027,{frequency:struggle?1300:440,endFrequency:struggle?350:160,attack:.018,pan:pan*.2,brown:!struggle});
+      this.tone(name==='impact'?68:85,.28,.027,now,{endFrequency:31,pan:0});
+      if(name==='grab')this.noise(.45,.013,{frequency:1900,delay:.08,pan:-pan*.3});
+      if(struggle)for(let i=1;i<4;i++)this.noise(.14,.011,{frequency:850,delay:i*.18,pan:i%2?.35:-.35});
+    }else if(name==='whisper'){
+      for(let i=0;i<3;i++)this.noise(.5-i*.07,.009,{frequency:1050+i*220,endFrequency:650,delay:i*.28,attack:.12,pan:i===1?-pan:pan});
+    }else if(name==='siren'){
+      for(let i=0;i<3;i++){
+        this.tone(490,.8,.0035,now+i*1.6,{endFrequency:660,pan:pan*.3});
+        this.tone(660,.8,.0035,now+i*1.6+.8,{endFrequency:490,pan:pan*.3});
+      }
+    }else if (['rustle', 'paper', 'rule'].includes(name)) {
       const paper = name !== 'rustle';
       this.noise(paper ? 0.55 : 1.7, paper ? 0.017 : 0.018, { frequency: paper ? 2500 : 1800, endFrequency: 800, attack: paper ? 0.08 : 0.5, pan });
       this.noise(0.3, 0.009, { frequency: 3500, delay: 0.23, pan });
@@ -246,11 +305,7 @@ export class AudioDirector {
   }
   dispose() {
     clearInterval(this.timer); window.speechSynthesis?.cancel();
-    for (const group of this.transients) {
-      try { group[0].stop(); } catch { /* Already stopped. */ }
-      for (const node of group) node.disconnect();
-    }
-    this.transients.clear();
+    this.stopTransients();
     for (const node of this.nodes) {
       try { node.stop?.(); node.disconnect(); } catch { /* Already released. */ }
     }
