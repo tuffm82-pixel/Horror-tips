@@ -7,11 +7,11 @@ let html=await readFile('dist/index.html','utf8');
 const scripts=[...html.matchAll(/<script\b[^>]*src="([^"]+)"[^>]*><\/script>/g)];
 for(const [tag,url] of scripts){
  const js=await readFile(resolve('dist',url.replace(/^\.\//,'')),'utf8');
- html=html.replace(tag,`<script type="module">${js.replace(/<\/script/gi,'<\\/script')}</script>`);
+ html=html.replace(tag,()=>`<script type="module">${js.replace(/<\/script/gi,'<\\/script')}</script>`);
 }
 for(const [tag,url] of [...html.matchAll(/<link\b[^>]*href="([^"]+\.css)"[^>]*>/g)]){
  const css=await readFile(resolve('dist',url.replace(/^\.\//,'')),'utf8');
- html=html.replace(tag,`<style>${css}</style>`);
+ html=html.replace(tag,()=>`<style>${css}</style>`);
 }
 // A local file cannot use Vite's preload polyfill to fetch relative modules.
 html=html.replace(/<link\b[^>]*rel="modulepreload"[^>]*>/g,'');
