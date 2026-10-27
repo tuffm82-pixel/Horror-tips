@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { WebSocket } from 'ws';
 import { createGameServer } from '../server.mjs';
 import { Multiplayer } from '../src/network.js';
+import {SCHOOL_OBSTACLES,segmentIntersectsBox,hasTagLineOfSight} from '../src/map-collision.js';
 
 async function client(url) {
   const ws = new WebSocket(url);
@@ -59,7 +60,8 @@ test('server refuses invalid rooms and rejects malformed packets without crashin
 });
 
 test('a creature can catch a survivor through server-validated proximity', async t => {
-  const game = createGameServer({hideMs:10,roundMs:5000,tickMs:20});
+  // Keep the gameplay deadline independent of CI machine scheduling delays.
+  const game = createGameServer({hideMs:10,roundMs:30000,tickMs:20});
   await game.listen(0,'127.0.0.1');
   t.after(()=>game.close());
   const url=`ws://127.0.0.1:${game.server.address().port}/ws`;
@@ -102,4 +104,38 @@ test('browser client recovers from invalid URLs and ignores callbacks after inte
   await new Promise(resolve=>setTimeout(resolve,30));
   assert.equal(states.length,count,'old socket close cannot reset the new UI');
   assert.equal(statuses.includes('disconnected'),false,'intentional close is handled by the caller');
+});
+
+test('nearby runners cannot be tagged through the blue wall but can be tagged on the same side',async t=>{
+  const game=createGameServer({hideMs:10,roundMs:4000,tickMs:20});
+  await game.listen(0,'127.0.0.1');t.after(()=>game.close());
+  const url=`ws://127.0.0.1:${game.server.address().port}/ws`,a=await client(url),b=await client(url);
+  t.after(()=>{a.ws.close();b.ws.close();});
+  a.send({type:'create',name:'Hunter'});
+  const lobby=await a.next(x=>x.type==='state');
+  b.send({type:'join',code:lobby.state.code,name:'Runner'});
+  await a.next(x=>x.type==='state'&&x.state.players.length===2);
+  a.send({type:'start'});await a.next(x=>x.type==='state'&&x.state.phase==='hunting');
+  const room=game.rooms.get(lobby.state.code),hunter=[...room.players.values()].find(p=>p.isCreature),runner=[...room.players.values()].find(p=>!p.isCreature);
+  // Seed the authoritative fixture on opposite accessible sides of the wall.
+  Object.assign(hunter,{x:6,z:11.4});Object.assign(runner,{x:6,z:12.6});
+  await new Promise(resolve=>setTimeout(resolve,80));
+  assert.equal(runner.alive,true,'solid school geometry blocks a proximity tag');
+  assert.equal(room.phase,'hunting');
+  Object.assign(hunter,{x:6,z:10.5});Object.assign(runner,{x:6,z:11.4});
+  const caught=await a.next(x=>x.type==='state'&&x.state.phase==='finished');
+  assert.equal(caught.state.winner,'creature');
+  assert.equal(caught.state.players.find(p=>!p.isCreature).alive,false);
+});
+
+test('tag visibility handles every school shell, parallel paths, and diagonal intersections',()=>{
+  for(const box of SCHOOL_OBSTACLES){
+    const z=(box.minZ+box.maxZ)/2;
+    assert.equal(segmentIntersectsBox({x:box.minX-.5,z},{x:box.maxX+.5,z},box),true);
+    assert.equal(segmentIntersectsBox({x:box.minX-.5,z:box.maxZ+.5},{x:box.maxX+.5,z:box.maxZ+.5},box),false);
+    assert.equal(segmentIntersectsBox({x:box.minX-.5,z:box.minZ-.5},{x:box.maxX+.5,z:box.maxZ+.5},box),true);
+  }
+  assert.equal(hasTagLineOfSight({x:6,z:11.4},{x:6,z:12.6}),false);
+  assert.equal(hasTagLineOfSight({x:6,z:10.5},{x:6,z:11.4}),true);
+  assert.equal(hasTagLineOfSight({x:NaN,z:1},{x:0,z:0}),false);
 });

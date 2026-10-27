@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer, WebSocket } from 'ws';
+import {hasTagLineOfSight} from './src/map-collision.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const mime = {'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json','.svg':'image/svg+xml','.png':'image/png','.webp':'image/webp','.ico':'image/x-icon','.mp3':'audio/mpeg'};
@@ -107,7 +108,7 @@ export function createGameServer({hideMs = 20000, roundMs = 90000, tickMs = 50, 
       if (room.phase==='hiding' && now>=room.deadline) {room.phase='hunting';room.deadline=now+roundMs;}
       if (room.phase==='hunting') {
         const creature=[...room.players.values()].find(p=>p.isCreature);
-        if (creature) for (const p of room.players.values()) if (p.alive && !p.isCreature && Math.hypot(p.x-creature.x,p.z-creature.z)<2.1) p.alive=false;
+        if (creature) for (const p of room.players.values()) if (p.alive && !p.isCreature && Math.hypot(p.x-creature.x,p.z-creature.z)<2.1 && hasTagLineOfSight(creature,p)) p.alive=false;
         if (![...room.players.values()].some(p=>!p.isCreature&&p.alive)) finish(room,'creature');
         else if (now>=room.deadline) finish(room,'survivors');
       }

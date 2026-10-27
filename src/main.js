@@ -1,5 +1,6 @@
 import './style.css';
 import './book.css';
+import './horror.css';
 import {createWorld} from './world.js';
 import {AudioDirector} from './audio.js';
 import {Multiplayer} from './network.js';
@@ -14,29 +15,38 @@ let world;
 try{world=createWorld(canvas,settings)}catch(e){app.innerHTML='<section class="error"><h1>A light went out.</h1><p>This game needs WebGL. Enable hardware acceleration or open it in a current desktop browser.</p></section>';throw e;}
 let mode='menu',scene='menu',paused=false,elapsed=0,sceneClock=0,lineIndex=0,lineClock=0,visited=[],countdown=0,currentLocation='courtyard',chapter=0,storyKey='',challenge=null,held=false,flashlight=true;
 let network=null,networkState=null,netTick=0,lastStep=0,notice='',noticeUntil=0;
+let transitionTimer=null;
+const touchLook={x:0,y:0};let lookPointer=null;
 const input={forward:false,back:false,left:false,right:false,sprint:false};
 const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const button=(label,action,cls='')=>`<button class="${cls}" data-action="${action}">${label}</button>`;
 function unlock(){audio.unlock();}
 function speak(text,speaker){subtitle.innerHTML=`<span>${escape(speaker)}</span><p>${escape(text)}</p>`;audio.say(text,speaker);}
-function clearSpeech(){subtitle.innerHTML='';if('speechSynthesis'in window) speechSynthesis.cancel();}
+function clearSpeech(){subtitle.innerHTML='';if('speechSynthesis'in window){speechSynthesis.cancel();speechSynthesis.resume();}}
 function location(name){currentLocation=name;world.setLocation(name);}
-function setScene(name){scene=name;sceneClock=0;world.setScene(name);}
+function setScene(name){scene=name;sceneClock=0;world.setScene(name);audio.setScene?.(name);document.body.dataset.scene=name;}
 function release(){if(document.pointerLockElement)document.exitPointerLock();Object.keys(input).forEach(k=>input[k]=false);held=false;}
-function checkpoint(){save('horror-tips-save',{visited,currentLocation,chapter});}
-function menu(){release();clearSpeech();mode='menu';paused=false;challenge=null;countdown=0;setScene('menu');render();}
-function startCampaign(resume=false){unlock();release();network?.disconnect();network=null;networkState=null;mode='campaign';paused=false;challenge=null;visited=[];chapter=0;location('courtyard');if(resume){const c=read('horror-tips-save',null);if(c){visited=c.visited||[];chapter=c.chapter||0;location(c.currentLocation||'courtyard');choose();return;}}runStory('intro');}
+function checkpoint(){save('horror-tips-save',{visited,currentLocation,chapter,countdown});}
+function menu(){if(mode==='campaign'&&scene==='choose')checkpoint();release();clearSpeech();mode='menu';paused=false;challenge=null;storyKey='';countdown=0;setScene('menu');render();}
+function startCampaign(resume=false){unlock();release();network?.disconnect();network=null;networkState=null;mode='campaign';paused=false;challenge=null;visited=[];chapter=0;location('courtyard');if(resume){const c=read('horror-tips-save',null);if(c){visited=c.visited||[];chapter=c.chapter||0;countdown=Math.max(0,Math.min(20,Number(c.countdown)||0));location(c.currentLocation||'courtyard');choose(false,false);return;}}runStory('intro');}
 function runStory(key){clearSpeech();storyKey=key;lineIndex=0;lineClock=0;setScene(key==='bathroom'?'bathroom':key==='bottom'?'chase':key==='top'?'indie':key==='blue'?'finn':key);showLine();render();}
-function showLine(){const line=story[storyKey][lineIndex];speak(line[1],line[0]);if(['transform','sonny','top'].includes(storyKey))audio.sting();}
+function showLine(){const line=story[storyKey][lineIndex];speak(line[1],line[0]);
+ const beat=`${storyKey}:${lineIndex}`;
+ if(line[0].startsWith('RULE '))audio.cue?.('book');
+ if(['transform:0','top:3','sonny:3','blue:3'].includes(beat)){audio.sting();document.body.classList.remove('dread-cut');void document.body.offsetWidth;document.body.classList.add('dread-cut');}
+ if(beat==='spin:1')audio.cue?.('freeze');
+ if(beat==='ending:0')audio.cue?.('bell');
+}
 function advance(){if(paused||mode!=='campaign'||!storyKey)return;lineIndex++;lineClock=0;if(lineIndex<story[storyKey].length){showLine();render();return;}const key=storyKey;storyKey='';clearSpeech();if(key==='intro'){setScene('intro');render();}else if(key==='spin')runStory('transform');else if(key==='transform'){countdown=20;choose(true);}else if(key==='bathroom')runStory('sonny');else if(key==='sonny'){countdown=20;choose();}else if(key==='bottom')startChallenge('ring');else if(key==='top')startChallenge('balance');else if(key==='blue')runStory('ending');else if(key==='ending'){save('horror-tips-complete',true);save('horror-tips-save',null);menu();}}
-function choose(first=false){release();setScene('choose');chapter++;checkpoint();mode='campaign';storyKey='';challenge=null;render(first);}
-function travel(name){if(!places[name])return;visited.push(name);countdown=0;location(name);runStory(name);}
+function choose(first=false,advanceChapter=true){release();setScene('choose');if(advanceChapter)chapter++;checkpoint();mode='campaign';storyKey='';challenge=null;render(first);}
+function travel(name){if(!places[name])return;release();visited.push(name);countdown=0;document.body.classList.remove('arriving');void document.body.offsetWidth;document.body.classList.add('arriving');clearTimeout(transitionTimer);transitionTimer=setTimeout(()=>document.body.classList.remove('arriving'),900);audio.cue?.('transition');location(name);runStory(name);}
 function startChallenge(type){release();setScene('chase');challenge={type,time:0,hits:0,fails:0,radius:150,position:.5,progress:0,outside:0,cooldown:0};render();}
-function fail(){release();clearSpeech();challenge=null;countdown=0;storyKey='';setScene('caught');audio.sting();app.innerHTML=`<section class="death centered"><span class="eyebrow">THE RULES ALWAYS WIN</span><h1>You’re in.</h1><p>It only needed one mistake.</p>${button('Try this chase again','retry','primary')}${button('Return to menu','menu','text-button')}</section>`;}
+function fail(){release();clearSpeech();challenge=null;countdown=0;storyKey='';setScene('caught');audio.sting();render();}
 function winChallenge(){challenge=null;audio.setThreat(0);speak('Your footsteps fade into the wind. For now, you are alone.','YOU');choose();}
 function hitRing(){if(!challenge||challenge.type!=='ring'||challenge.cooldown>0||paused)return;const good=ringSuccess(challenge.radius);if(good)challenge.hits++;else{challenge.fails++;audio.sting();}challenge.time=0;challenge.radius=150;challenge.cooldown=.22;if(challenge.fails>=3){fail();return;}if(challenge.hits>=5){winChallenge();return;}updateChallenge();}
 function hud(){return `<header class="game-head"><div class="wordmark">H<span>Τ</span></div><div class="location"><span class="live-dot"></span> WOLLONGONG WEST <b>${escape(places[currentLocation]?.name||'The courtyard')}</b></div>${button('Ⅱ <span>Pause</span>','pause','small-button')}</header><div id="timer" class="timer ${countdown>0?'':'hidden'}"><span>TIME TO HIDE</span><strong>${Math.ceil(countdown)}</strong></div><div class="crosshair" aria-hidden="true">+</div><footer class="game-foot"><span>W A S D <i>move</i> &nbsp; SHIFT <i>run</i> &nbsp; F <i>torch</i></span><span>CLICK SCENE TO LOOK AROUND</span></footer><nav class="touch-controls" aria-label="Touch movement"><button data-move="forward" aria-label="Forward">↑</button><button data-move="left" aria-label="Left">←</button><button data-move="back" aria-label="Back">↓</button><button data-move="right" aria-label="Right">→</button></nav>`;}
 function render(first=false){
+ document.body.classList.toggle('playing',mode==='campaign'||mode==='online');
  document.body.classList.toggle('reduce-motion',settings.reducedMotion);document.documentElement.style.setProperty('--brightness',settings.brightness);
  if(mode==='menu'){
  const completed=read('horror-tips-complete',false),saved=read('horror-tips-save',null);
@@ -44,6 +54,7 @@ function render(first=false){
  }
  if(mode==='settings'){app.innerHTML=`<section class="panel settings"><span class="eyebrow">MAKE YOURSELF COMFORTABLE</span><h1>Settings<span>.</span></h1><label>Master volume <output id="volume-value">${Math.round(settings.volume*100)}%</output><input id="volume" type="range" min="0" max="1" step=".05" value="${settings.volume}"></label><label>Brightness <input id="brightness" type="range" min=".75" max="1.8" step=".05" value="${settings.brightness}"></label><label class="row">Spoken dialogue <input id="voice" type="checkbox" ${settings.voice?'checked':''}></label><label class="row">Reduced motion <input id="motion" type="checkbox" ${settings.reducedMotion?'checked':''}></label><label class="row">Graphics <select id="quality"><option value="high" ${settings.quality==='high'?'selected':''}>High · shadows</option><option value="low" ${settings.quality==='low'?'selected':''}>Low · performance</option></select></label><p class="fine">Dialogue always has subtitles. Horror uses implied attacks and sudden sounds. Voice availability depends on your browser.</p>${button('← Back','back-settings','primary')}</section>`;return;}
  if(mode==='multiplayer'){renderMultiplayer();return;}
+ if(scene==='caught'){app.innerHTML=`<section class="death centered"><span class="eyebrow">THE RULES ALWAYS WIN</span><h1>You’re in.</h1><p>It only needed one mistake.</p>${button('Try this chase again','retry','primary')}${button('Return to menu','menu','text-button')}</section>`;return;}
  app.innerHTML=hud();
  if(storyKey){const line=story[storyKey][lineIndex];app.insertAdjacentHTML('beforeend',`<div class="chapter-tag">${String(chapter+1).padStart(2,'0')} / ${escape(storyKey.toUpperCase())}</div>${line[0].startsWith('RULE ')?`<aside class="rulebook"><span>THE RULES OF TIPS</span><div class="book-pages"><div><small>AFTER THE BELL</small><strong>${escape(line[0])}</strong><i>Every game has rules.<br>These ones remember.</i></div><div><span>§</span><p>${escape(line[1])}</p><small>OBEY. SURVIVE. REPEAT.</small></div></div></aside>`:''}${button('Continue <span>SPACE →</span>','advance','continue-button')}${storyKey==='bathroom'&&lineIndex===1?'<div class="blackout"></div>':''}`);return;}
  if(scene==='intro'){app.insertAdjacentHTML('beforeend',`<section class="invitation centered"><span class="eyebrow">SOME GAMES NEVER END</span><h1>Do you wanna<br>play tips?</h1>${button('Yes.','yes','primary')}</section>`);return;}
@@ -55,7 +66,7 @@ function render(first=false){
 }
 function renderChallenge(){app.insertAdjacentHTML('beforeend',`<section class="challenge"><span class="eyebrow">${challenge.type==='ring'?'IT IS RIGHT BEHIND YOU':'STEADY YOUR BREATH'}</span><h1>${challenge.type==='ring'?'Don’t miss a step.':'Keep it together.'}</h1><p>${challenge.type==='ring'?'Click or press SPACE when the circles line up. Five perfect steps. Three misses and it catches you.':'Hold SPACE or hold the button to push right. Release to drift left. Stay inside the pale zone for 10 seconds.'}</p>${challenge.type==='ring'?'<button class="ring-game" data-action="ring" aria-label="Time your step"><span class="ring-target"></span><span id="closing-ring"></span><span class="ring-center">STEP</span></button>':'<div class="balance-track"><span class="safe-zone"></span><span id="balance-line"></span></div><button class="hold-button" id="hold-button">HOLD TO STEADY</button>'}<div class="challenge-meta" id="challenge-meta"></div></section>`);updateChallenge();}
 function updateChallenge(){if(!challenge)return;const c=challenge;if(c.type==='ring'){const r=$('#closing-ring');if(r){r.style.width=r.style.height=`${c.radius*2}px`;r.classList.toggle('perfect',ringSuccess(c.radius));}const m=$('#challenge-meta');if(m)m.innerHTML=`<span>${'● '.repeat(c.hits)}${'○ '.repeat(5-c.hits)} <b>${c.hits} / 5</b></span><span>${c.fails} / 3 MISSES</span>`;}else{const l=$('#balance-line');if(l)l.style.left=`${c.position*100}%`;const m=$('#challenge-meta');if(m)m.innerHTML=`<span>BREATH <b>${Math.floor(c.progress)} / 10 s</b></span><span>EXPOSURE <b>${Math.round(c.outside/2.8*100)}%</b></span>`;}}
-function pause(){if(mode!=='campaign'&&mode!=='online')return;release();paused=true;audio.setThreat(0);if('speechSynthesis'in window)speechSynthesis.pause();app.insertAdjacentHTML('beforeend',`<section class="pause-overlay"><div class="panel"><span class="eyebrow">TAKE A BREATH</span><h1>Paused<span>.</span></h1><p>${mode==='online'?'The online round keeps running.':'The school can wait.'}</p>${button('Resume','resume','primary')}${button('Settings','pause-settings','text-button')}${button('Main menu','menu','text-button')}</div></section>`);}
+function pause(){if(paused||(mode!=='campaign'&&mode!=='online'))return;if(mode==='campaign'&&scene==='choose')checkpoint();release();paused=true;audio.setThreat(0);if('speechSynthesis'in window)speechSynthesis.pause();app.insertAdjacentHTML('beforeend',`<section class="pause-overlay"><div class="panel"><span class="eyebrow">TAKE A BREATH</span><h1>Paused<span>.</span></h1><p>${mode==='online'?'The online round keeps running.':'The school can wait.'}</p>${button('Resume','resume','primary')}${button('Settings','pause-settings','text-button')}${button('Main menu','menu','text-button')}</div></section>`);}
 let settingsFrom='menu';
 function renderMultiplayer(){const s=networkState;
  const finished=s?.phase==='finished';
@@ -97,18 +108,25 @@ window.addEventListener('keyup',e=>{if(keyMap[e.code])input[keyMap[e.code]]=fals
 window.addEventListener('blur',()=>{Object.keys(input).forEach(k=>input[k]=false);held=false;if(mode==='campaign'&&!paused)pause();});
 app.addEventListener('pointerdown',e=>{if(e.target.closest('#hold-button')){held=true;e.target.setPointerCapture?.(e.pointerId);}const m=e.target.closest('[data-move]');if(m){input[m.dataset.move]=true;m.setPointerCapture?.(e.pointerId);}});
 for(const ev of ['pointerup','pointercancel'])app.addEventListener(ev,e=>{held=false;const m=e.target.closest('[data-move]');if(m)input[m.dataset.move]=false;});
-let last=performance.now();function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;elapsed+=dt;
+canvas.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse')return;lookPointer={id:e.pointerId,x:e.clientX,y:e.clientY};canvas.setPointerCapture(e.pointerId);});
+canvas.addEventListener('pointermove',e=>{if(!lookPointer||lookPointer.id!==e.pointerId||paused)return;touchLook.x-=(e.clientX-lookPointer.x)*.003;touchLook.y-=(e.clientY-lookPointer.y)*.003;lookPointer.x=e.clientX;lookPointer.y=e.clientY;});
+for(const ev of ['pointerup','pointercancel'])canvas.addEventListener(ev,()=>lookPointer=null);
+let last=performance.now();function frame(now){const rawDt=Math.min(1,Math.max(0,(now-last)/1000)),dt=Math.min(.05,rawDt);last=now;elapsed+=rawDt;
  if(!paused&&mode!=='settings'){
  sceneClock+=dt;
- if(mode==='campaign'&&storyKey){lineClock+=dt;if(lineClock>=story[storyKey][lineIndex][2])advance();}
- if(countdown>0&&scene==='choose'){countdown=Math.max(0,countdown-dt);const el=$('#timer strong');if(el)el.textContent=Math.ceil(countdown);if(countdown===0)travel('blue');}
- if(challenge){const c=challenge;c.time+=dt;c.cooldown=Math.max(0,c.cooldown-dt);audio.setThreat(.85);if(c.type==='ring'){c.radius=150-c.time*57;if(c.radius<22){c.fails++;c.time=0;c.radius=150;audio.sting();if(c.fails>=3)fail();}}else{c.position=balanceStep(c.position,held,dt);if(c.position>=.3&&c.position<=.7){c.progress+=dt;c.outside=Math.max(0,c.outside-dt*.3);}else c.outside+=dt;if(c.outside>=2.8)fail();else if(c.progress>=10)winChallenge();}updateChallenge();}
+ if(mode==='campaign'&&storyKey){lineClock+=rawDt;const duration=story[storyKey][lineIndex][2],talking=settings.voice&&settings.volume>0&&window.speechSynthesis?.speaking;if(lineClock>=duration&&(!talking||lineClock>=duration+8))advance();}
+ if(countdown>0&&scene==='choose'){countdown=Math.max(0,countdown-rawDt);const el=$('#timer strong');if(el)el.textContent=Math.ceil(countdown);if(countdown===0)travel('blue');}
+ if(challenge){const c=challenge;c.time+=rawDt;c.cooldown=Math.max(0,c.cooldown-rawDt);if(c.type==='ring'){c.radius=150-c.time*57;if(c.radius<22){c.fails++;c.time=0;c.radius=150;audio.sting();if(c.fails>=3)fail();}}else{c.position=balanceStep(c.position,held,rawDt);if(c.position>=.3&&c.position<=.7){c.progress+=rawDt;c.outside=Math.max(0,c.outside-rawDt*.3);}else c.outside+=rawDt;if(c.outside>=2.8)fail();else if(c.progress>=10)winChallenge();}updateChallenge();}
  }
  const canMove=!paused&&(mode==='online'||(mode==='campaign'&&!!challenge));
  const me=networkState?.players.find(p=>p.id===network?.id),onlineLocked=mode==='online'&&(!me?.alive||(me?.isCreature&&networkState?.phase==='hiding'));
- if(!challenge)audio.setThreat(0);
- world.update(paused||mode==='settings'?0:dt,{scene,time:sceneClock,threat:challenge?.85:0,frozen:scene==='spin'&&lineIndex>=1,moving:canMove&&!onlineLocked,playerInput:canMove&&!onlineLocked?input:{},isCreature:mode==='online'&&Boolean(me?.isCreature),flashlight,reducedMotion:settings.reducedMotion});
- if(canMove&&(input.forward||input.back||input.left||input.right)&&elapsed-lastStep>.46){audio.step();lastStep=elapsed;}
+ const threat=challenge?Math.min(1,.36+(challenge.type==='ring'?challenge.fails*.16+challenge.time*.12:challenge.outside*.17)):(scene==='caught'?1:0);
+ audio.setThreat(threat);
+ audio.setPaused?.(paused||mode==='settings');
+ document.documentElement.style.setProperty('--fear',paused?0:threat);
+ world.update(paused||mode==='settings'?0:dt,{scene,time:sceneClock,storyKey,storyLine:lineIndex,lineTime:lineClock,lineProgress:storyKey?Math.min(1,lineClock/story[storyKey][lineIndex][2]):0,challengeProgress:challenge?.type==='ring'?challenge.hits/5:(challenge?.progress||0)/10,challengeFails:challenge?.fails||0,challengeType:challenge?.type,threat,frozen:scene==='spin'&&lineIndex>=1,moving:canMove&&!onlineLocked,playerInput:canMove&&!onlineLocked?input:{},look:lookPointer&&dt>0?{x:touchLook.x/dt,y:touchLook.y/dt}:undefined,isCreature:mode==='online'&&Boolean(me?.isCreature),flashlight,reducedMotion:settings.reducedMotion});
+ touchLook.x=touchLook.y=0;
+ if(canMove&&(input.forward||input.back||input.left||input.right)&&elapsed-lastStep>(input.sprint?.3:.46)){audio.step(['top','bottom'].includes(currentLocation)?'grass':'concrete',input.sprint);lastStep=elapsed;}
  if(mode==='online'&&network){netTick+=dt;if(netTick>.08){netTick=0;const p=world.getPose();network.move({x:p.x,z:p.z,yaw:p.rotation});}}
  requestAnimationFrame(frame);
 }

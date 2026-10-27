@@ -8,6 +8,10 @@ For the download, extract the ZIP and open **Horror Tips.html**. The campaign ne
 
 A first-person browser horror game about a game of tips that continues after the school bell. Explore a night-time school, meet the spinner, learn the rules, and survive branching chase sequences. The creature and characters are original fictional designs. Attacks use atmosphere and cutaways rather than graphic injury.
 
+## Horror atmosphere update
+
+The current build adds a darker night scene, shadow-casting torch, weathered materials, wet ground, organic foliage, rounded figures, a more detailed creature, spatial stereo cues, and dialogue-synchronized encounters. Pause/retry, checkpoint timing, touch look, and wall-aware multiplayer tags are covered by regression checks. The school remains an approximate fictional environment pending reference photos.
+
 ## Run locally
 
 Install Node.js 22 or newer, then run these commands in the project folder:
