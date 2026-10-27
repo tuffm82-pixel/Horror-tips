@@ -1,5 +1,11 @@
 # Horror Tips
 
+## [▶ CLICK ME — PLAY IN BROWSER OR DOWNLOAD](CLICK%20ME.md)
+
+[Play in your browser](https://tuffm82-pixel.github.io/Horror-tips/) · [Download the playable ZIP](https://github.com/tuffm82-pixel/Horror-tips/raw/refs/heads/main/downloads/Horror-Tips.zip)
+
+For the download, extract the ZIP and open **Horror Tips.html**. The campaign needs no installation. Online multiplayer requires a hosted server.
+
 A first-person browser horror game about a game of tips that continues after the school bell. Explore a night-time school, meet the spinner, learn the rules, and survive branching chase sequences. The creature and characters are original fictional designs. Attacks use atmosphere and cutaways rather than graphic injury.
 
 ## Run locally
@@ -34,7 +40,9 @@ Open `http://localhost:3000`. `PORT` can override the production server port. Ru
 
 The Node server serves the built game and its multiplayer connection together. Host the project on a Node-capable service, run `npm ci && npm run build` during deployment, and start it with `npm start`. A shared public server is needed for friends on different networks; a local development server is not automatically reachable over the internet.
 
-The included **Publish campaign to GitHub Pages** workflow is started manually from the repository's Actions tab. Enable GitHub Pages with **GitHub Actions** as its source first. Pages serves the static campaign; it cannot run the multiplayer server. In the multiplayer lobby, enter a separately hosted WebSocket server address when using a static host. Use `wss://` on HTTPS pages.
+The included **Publish campaign to GitHub Pages** workflow runs automatically when `main` changes, or manually from the repository's Actions tab. Enable GitHub Pages with **GitHub Actions** as its source first. Pages serves the static campaign; it cannot run the multiplayer server. In the multiplayer lobby, enter a separately hosted WebSocket server address when using a static host. Use `wss://` on HTTPS pages.
+
+To regenerate the playable download after a build, run `node scripts/package-download.mjs`. This creates `downloads/Horror-Tips.zip` and includes a copy in the Pages build.
 
 ## Environment references and future photos
 
