@@ -67,6 +67,50 @@ export function createEnvironmentDetails(scene, { surfaces = {}, mats = {}, box,
   label('PEDESTRIAN EXIT', 23.2, 2.4, 64.9, 2.8, Math.PI, 'PLEASE CLOSE THE GATE');
   label('NO BALL GAMES', 24.86, 1.75, -3.5, 1.25, -Math.PI / 2, 'AGAINST THE BUILDING');
   label('MIND THE STEP', -23.28, 0.67, 16, 1.3, Math.PI / 2, '', 'road');
+  label('CANTEEN SUPPLY', -9, 2.55, -15.12, 2.05, 0, 'OUTDOOR BREAKER   •   KEEP SHUTTER CLOSED');
+  label('SUPPLY →', -18.2, 3.22, -15.56, 1.45, 0, 'FOLLOW THE VERANDAH');
+  label('EMERGENCY CHALK', -18, 0.91, -12.58, 1.45, 0, 'KEEP IN CASE UNTIL THE LAST BELL');
+
+  // The late chapter uses a real, visible outdoor switch at the navigation target.
+  // Its cabinet is against the north wall, leaving x-9,z-13 clear to approach.
+  b(1.26, 1.48, 0.36, palette.metal, -9, 1.52, -15.44);
+  b(1.08, 1.27, 0.04, palette.darkPaint, -9, 1.52, -15.235);
+  b(0.75, 0.1, 0.06, palette.paint, -9, 1.96, -15.19);
+  b(0.53, 0.36, 0.05, palette.black, -9, 1.47, -15.18);
+  for (const dx of [-0.5, 0.5]) for (const y of [0.96, 2.07]) {
+    b(0.045, 0.045, 0.025, palette.metal, -9 + dx, y, -15.2);
+  }
+  pole(0.038, 1.0, palette.metal, -9.42, 0.5, -15.49);
+  b(0.085, 0.085, 4.6, palette.metal, -9.42, 0.12, -17.7);
+  const breaker = new THREE.Group(); breaker.name = 'canteen-breaker-handle';
+  breaker.position.set(-9, 1.48, -15.12); root.add(breaker);
+  const handleGeo = new THREE.BoxGeometry(0.14, 0.37, 0.13); geometries.add(handleGeo);
+  const handle = new THREE.Mesh(handleGeo, palette.black); handle.position.set(0, -0.12, 0.08); breaker.add(handle);
+  const gripGeo = new THREE.BoxGeometry(0.34, 0.1, 0.17); geometries.add(gripGeo);
+  const grip = new THREE.Mesh(gripGeo, palette.paint); grip.position.set(0, -0.3, 0.08); breaker.add(grip);
+  const statusMat = material('#7f2f24', { emissive: '#c63f25', emissiveIntensity: 0.65, roughness: 0.35 });
+  const ledGeo = new THREE.SphereGeometry(0.046, 8, 6); geometries.add(ledGeo);
+  const statusLed = new THREE.Mesh(ledGeo, statusMat); statusLed.name = 'canteen-power-indicator'; statusLed.position.set(-8.69, 1.97, -15.14); root.add(statusLed);
+  // Paint dashes and a faded wall arrow make the trip readable without a waypoint beam.
+  for (let i = 0; i < 8; i++) b(0.38, 0.012, 0.07, palette.paint, -17.6 + i, 0.317, -14.37);
+  const arrowPoints = new THREE.BufferGeometry();
+  arrowPoints.setAttribute('position', new THREE.Float32BufferAttribute([-10.45, 0.324, -14.61, -10.02, 0.324, -14.37, -10.45, 0.324, -14.13], 3));
+  arrowPoints.computeVertexNormals(); geometries.add(arrowPoints);
+  root.add(new THREE.Mesh(arrowPoints, palette.paint));
+
+  // A small glazed emergency case gives the office return a tangible destination.
+  b(1.85, 0.85, 0.76, palette.darkPaint, -18, 0.75, -13);
+  b(1.98, 0.1, 0.88, palette.wood, -18, 1.23, -13);
+  b(1.62, 0.045, 0.65, palette.black, -18, 1.31, -13);
+  for (const dx of [-0.8, 0.8]) for (const dz of [-0.3, 0.3]) b(0.035, 0.48, 0.035, palette.metal, -18 + dx, 1.57, -13 + dz);
+  const caseGlass = material('#9db8b3', { transparent: true, opacity: 0.15, roughness: 0.15, depthWrite: false });
+  const caseGeo = new THREE.BoxGeometry(1.62, 0.48, 0.64); geometries.add(caseGeo);
+  const glassCase = new THREE.Mesh(caseGeo, caseGlass); glassCase.position.set(-18, 1.57, -13); root.add(glassCase);
+  const chalkGeo = new THREE.CylinderGeometry(0.045, 0.045, 0.42, 8); geometries.add(chalkGeo);
+  const chalkPiece = new THREE.Mesh(chalkGeo, palette.tile); chalkPiece.name = 'emergency-chalk-piece';
+  chalkPiece.position.set(-18, 1.39, -13); chalkPiece.rotation.z = Math.PI / 2; root.add(chalkPiece);
+  const latchGeo = new THREE.BoxGeometry(0.2, 0.12, 0.08); geometries.add(latchGeo);
+  const caseLatch = new THREE.Mesh(latchGeo, statusMat); caseLatch.position.set(-18, 1.5, -12.64); root.add(caseLatch);
 
   // Noticeboard frame, attached pinboard and uneven paper notices.
   b(2.85, 1.5, 0.13, palette.wood, -14.8, 2.12, -15.62);
@@ -312,7 +356,8 @@ export function createEnvironmentDetails(scene, { surfaces = {}, mats = {}, box,
     mesh.castShadow = batch.material !== chalk; mesh.receiveShadow = true; root.add(mesh);
   }
   if (labels.length) {
-    const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 1024;
+    const canvas = document.createElement('canvas'); canvas.width = 1024;
+    canvas.height = 2 ** Math.ceil(Math.log2(Math.max(128, Math.ceil(labels.length / 2) * 128)));
     const ctx = canvas.getContext('2d'); const cols = 2, tw = 512, th = 128;
     const vertices = [], uv = [], faceIndices = [];
     labels.forEach((entry, i) => {
@@ -324,18 +369,27 @@ export function createEnvironmentDetails(scene, { surfaces = {}, mats = {}, box,
       const h = entry.width / 4, normal = new THREE.Vector3(Math.sin(entry.rotation), 0, Math.cos(entry.rotation)), center = new THREE.Vector3(entry.x, entry.y, entry.z).addScaledVector(normal, 0.01), side = new THREE.Vector3(Math.cos(entry.rotation), 0, -Math.sin(entry.rotation));
       const corners = [[-1, -1], [1, -1], [1, 1], [-1, 1]], start = vertices.length / 3;
       for (const [sx, sy] of corners) { const p = center.clone().addScaledVector(side, sx * entry.width / 2); p.y += sy * h / 2; vertices.push(p.x, p.y, p.z); }
-      uv.push(tx / 1024, 1 - (ty + th) / 1024, (tx + tw) / 1024, 1 - (ty + th) / 1024, (tx + tw) / 1024, 1 - ty / 1024, tx / 1024, 1 - ty / 1024);
+      uv.push(tx / canvas.width, 1 - (ty + th) / canvas.height, (tx + tw) / canvas.width, 1 - (ty + th) / canvas.height, (tx + tw) / canvas.width, 1 - ty / canvas.height, tx / canvas.width, 1 - ty / canvas.height);
       faceIndices.push(start, start + 1, start + 2, start, start + 2, start + 3);
     });
     const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace; texture.anisotropy = 4; textures.add(texture);
     const geometry = new THREE.BufferGeometry(); geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3)); geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); geometry.setIndex(faceIndices); geometry.computeVertexNormals(); geometries.add(geometry);
     const mat = material('#ffffff', { map: texture, side: THREE.DoubleSide }); root.add(new THREE.Mesh(geometry, mat));
   }
-  let elapsed = 0, leafTick = -1;
+  let elapsed = 0, leafTick = -1, restored = null;
   return {
     update(dt, state = {}) {
       elapsed = Number.isFinite(state.time) ? state.time : elapsed + Math.min(Number(dt) || 0, 0.05);
       const still = Boolean(state.reducedMotion);
+      const power = Boolean(state.powerRestored);
+      if (power !== restored) {
+        restored = power;
+        statusMat.color.set(power ? '#51865c' : '#7f2f24');
+        statusMat.emissive.set(power ? '#72bb72' : '#c63f25');
+        breaker.rotation.x = power ? -0.42 : 0.42;
+        caseLatch.position.y = power ? 1.78 : 1.5;
+      }
+      chalkPiece.visible = !state.chalkTaken;
       swingSeats.forEach((seat, i) => { seat.rotation.x = still ? 0 : Math.sin(elapsed * 0.72 + i * 1.8) * 0.025; });
       if (Math.floor(elapsed * 10) !== leafTick) { leafTick = Math.floor(elapsed * 10); updateLeaves(elapsed, still); }
       cloudTexture.offset.x = still ? 0 : elapsed * 0.0004;

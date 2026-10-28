@@ -61,3 +61,14 @@ test('gate, struggle, impact, whisper, siren, and power loss have procedural sou
   }
   audio.dispose();assert.equal(ctx.state,'closed');assert.equal(audio.context,null);assert.equal(audio.transients.size,0);
 });
+
+test('the breaker and restored power are distinct cues and restoration ends the power-cut hush',t=>{
+  const {audio,ctx}=audioHarness(t);audio.cue('powercut');
+  assert.ok(audio.hushUntil>ctx.currentTime);
+  let count=ctx.sources.length;audio.cue('breaker');assert.ok(ctx.sources.length>count);
+  count=ctx.sources.length;audio.cue('powerrestore');assert.ok(ctx.sources.length>count);
+  assert.ok(audio.hushUntil<=ctx.currentTime);
+  const restored=ctx.sources.length;audio.cue('powerrestored');assert.equal(ctx.sources.length,restored,'restoration aliases cannot double up');
+  ctx.currentTime+=12;count=ctx.sources.length;audio.cue('lurevoice');assert.ok(ctx.sources.length>count);
+  audio.setPaused(true);count=ctx.sources.length;audio.cue('breaker');audio.cue('powerrestore');audio.cue('lurevoice');assert.equal(ctx.sources.length,count);
+});

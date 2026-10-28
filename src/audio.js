@@ -115,8 +115,8 @@ export class AudioDirector {
   }
   applySceneAmbience(){
     const ctx=this.context;if(!ctx||!this.airLevel)return;
-    const indoor=['bathroom','office'].includes(this.scene),street=['street','outside'].includes(this.scene);
-    const values=[[this.airLevel,indoor?.18:this.scene==='vanish'?.35:street?.9:1],[this.trafficLevel,this.scene==='street'?.018:this.scene==='outside'?.008:0],[this.roomLevel,indoor?.0025:0]];
+    const indoor=['bathroom','office','canteen','blackout','restored'].includes(this.scene),street=['street','outside'].includes(this.scene);
+    const values=[[this.airLevel,indoor?.18:this.scene==='vanish'?.35:street?.9:1],[this.trafficLevel,this.scene==='street'?.018:this.scene==='outside'?.008:0],[this.roomLevel,indoor&&this.scene!=='blackout'?.0025:0]];
     for(const [node,value]of values){node.gain.cancelScheduledValues(ctx.currentTime);node.gain.setTargetAtTime(value,ctx.currentTime,.7);}
     this.appliedThreat=-1;this.lastThreatUpdate=-10;this.setThreat(this.threat);
   }
@@ -147,7 +147,7 @@ export class AudioDirector {
     if (now >= this.nextAmbient) {
       this.nextAmbient = now + 10 + Math.random() * 15;
       if (!talking && this.threat < 0.75) {
-        const options = this.scene === 'bathroom' ? ['creak', 'crackle', 'distantSteps'] : this.scene==='office'?['creak','crackle','whisper']:this.scene==='street'?['rustle','siren','footstepsbehind']:this.scene==='outside'?['gate','rustle','distantSteps']:this.scene==='vanish'?['whisper','crackle']:['rustle', 'distantSteps', 'creak', 'rustle', 'bell', 'crackle'];
+        const options = this.scene === 'bathroom' ? ['creak', 'crackle', 'distantSteps'] : ['office','canteen','blackout'].includes(this.scene)?['creak','crackle','lurevoice']:this.scene==='street'?['rustle','siren','footstepsbehind']:this.scene==='outside'?['gate','rustle','distantSteps']:this.scene==='vanish'?['whisper','crackle']:['rustle', 'distantSteps', 'creak', 'rustle', 'bell', 'crackle'];
         this.cue(options[Math.floor(Math.random() * options.length)]);
       }
     }
@@ -212,12 +212,29 @@ export class AudioDirector {
     if (!this.canPlay()) return;
     // The narrative uses "book" for the same quiet paper/PA cue as rule narration.
     // Normalize before the cooldown so a book opening and its line do not double up.
-    name=({book:'rule',suddenstop:'vanish',creaturevanish:'vanish',footstepsbehind:'footstepsbehind',powercut:'powercut'})[String(name).toLowerCase()]||name;
-    const now = this.context.currentTime, cooldown = ({bell:45,growl:8,rule:2,gate:8,charge:5,vanish:5,grab:4,struggle:3,impact:.65,whisper:10,siren:18,footstepsbehind:4,powercut:6})[name]??5;
+    name=({book:'rule',suddenstop:'vanish',creaturevanish:'vanish',footstepsbehind:'footstepsbehind',powercut:'powercut',powerrestored:'powerrestore',restored:'powerrestore',lurevoiceambient:'lurevoice'})[String(name).toLowerCase()]||name;
+    const now = this.context.currentTime, cooldown = ({bell:45,growl:8,rule:2,gate:8,charge:5,vanish:5,grab:4,struggle:3,impact:.65,whisper:10,siren:18,footstepsbehind:4,powercut:6,breaker:2,powerrestore:6,lurevoice:12})[name]??5;
     if (now - (this.cooldowns.get(name) ?? -100) < cooldown) return;
     this.cooldowns.set(name, now);
     const pan = (Math.random() < 0.5 ? -1 : 1) * (0.45 + Math.random() * 0.4);
-    if(name==='vanish'||name==='powercut'){
+    if(name==='breaker'){
+      this.noise(.065,.022,{frequency:1500,pan:0});
+      this.tone(136,.14,.018,now,{endFrequency:66,pan:0});
+      this.noise(.1,.013,{frequency:520,delay:.14,pan:.1});
+    }else if(name==='powerrestore'){
+      this.hushUntil=now;this.bedVolume=undefined;
+      this.bed.gain.cancelScheduledValues(now);this.bed.gain.setTargetAtTime(window.speechSynthesis?.speaking?.55:1,now,.45);
+      this.noise(.65,.011,{frequency:2700,endFrequency:430,attack:.07,pan:0});
+      this.tone(92,1.2,.008,now,{endFrequency:100,pan:0});
+      this.tone(410,.8,.003,now+.17,{endFrequency:445,pan:-.2});
+      this.applySceneAmbience();
+    }else if(name==='lurevoice'){
+      // Breath and formant-like tones suggest a voice without intelligible words.
+      this.noise(1.25,.009,{frequency:950,endFrequency:420,attack:.3,pan});
+      this.tone(167,.9,.003,now+.1,{type:'triangle',endFrequency:138,pan});
+      this.tone(335,.8,.002,now+.2,{endFrequency:276,pan:pan*.7});
+      this.noise(.42,.006,{frequency:1800,endFrequency:780,delay:.72,attack:.1,pan:-pan*.4});
+    }else if(name==='vanish'||name==='powercut'){
       // Stop the charge's not-yet-played steps before creating the withdrawal.
       this.stopTransients();this.hushUntil=now+(name==='powercut'?2.8:1.25);
       this.bedVolume=.035;this.bed.gain.cancelScheduledValues(now);this.bed.gain.setTargetAtTime(.035,now,.035);

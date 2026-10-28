@@ -8,6 +8,14 @@ For the download, extract the ZIP and open **Horror Tips.html**. The campaign ne
 
 A first-person browser horror game about a game of tips that continues after the school bell. Explore a night-time school, meet the spinner, learn the rules, and survive branching chase sequences. The creature and characters are original fictional designs. Attacks use atmosphere and cutaways rather than graphic injury.
 
+## Models and timed walking
+
+The current character models are continuous skinned meshes with weighted elbow/knee deformation, profiled faces, modeled eyes and eyelids, hands/fingers, collared polos, fitted trousers, shoe details and wavy hair. The creature has its own skinned body and jaw. Mesh buffers are shared while skeletons and materials stay independent for animation and multiplayer. Humans use roughly 12–13k triangles each; the creature roughly 8.6k. These are custom models authored in the project, not Tripo-generated assets.
+
+The original Bathroom, Bottom oval, Top oval and Blue wall options remain. Selecting one starts an on-foot objective rather than teleporting. Follow the compass waypoints around walls and arrive before the countdown; being late triggers a creature attack and a retry from the route’s starting position. Route times account for walking distance. Pausing and continuing preserve progress.
+
+The office chapter now continues through a blackout, a voice behind the canteen shutter, an outside breaker interaction, and a return to the unlocked chalk box before the last-bell escape.
+
 ## Animated campaign expansion
 
 The spinner now points around a circle of players and selects a different person; the selected player transforms while the spinner stays human. Articulated rigs have keyframed idle, walk, run, pointing, recoil, grabbed, fall, stalking and lunging poses. Encounters use non-graphic struggle and shadow cutaways.

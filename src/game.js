@@ -1,4 +1,4 @@
-export const places={bathroom:{name:'Bathroom',detail:'A locked door. A borrowed moment.',number:'01'},bottom:{name:'Bottom oval',detail:'Cross the court. Keep your nerve.',number:'02'},top:{name:'Top oval',detail:'The trees might hide you.',number:'03'},blue:{name:'Blue wall',detail:'Back to where it all began.',number:'04'},gate:{name:'School gate'},outside:{name:'Beyond the fence'},street:{name:'The empty street'},office:{name:'The office'}};
+export const places={bathroom:{name:'Bathroom',detail:'A locked door. A borrowed moment.',number:'01'},bottom:{name:'Bottom oval',detail:'Cross the court. Keep your nerve.',number:'02'},top:{name:'Top oval',detail:'The trees might hide you.',number:'03'},blue:{name:'Blue wall',detail:'Back to where it all began.',number:'04'},gate:{name:'School gate'},outside:{name:'Beyond the fence'},street:{name:'The empty street'},office:{name:'The office'},canteen:{name:'Canteen supply breaker'}};
 export function ringSuccess(radius){return Math.abs(radius-54)<=13;}
 export function balanceStep(position,held,dt){return Math.max(0,Math.min(1,position+(held?.42:-.27)*dt));}
 export function nextPlaces(visited){return ['bathroom','bottom','top','blue'].filter(p=>!visited.includes(p)&&p!=='bathroom');}
@@ -14,13 +14,25 @@ export const story={
  gate:[['YOU','You reach the school gate. The latch is already open.',4],['YOU','Beyond the fence, a streetlight shines over an empty road. Maybe it ends out there.',5]],
  street:[['YOU','The road is empty. Even the wind has stopped.',3],['YOU','Under the next streetlight, a tall shape surges out of the darkness. It is running straight at you.',3.8],['YOU','A metre away, it disappears. No footsteps. No shadow.',2.8],['THE SCHOOL SPEAKER','You are still in.',4]],
  vanish:[['YOU','A footstep sounds directly behind you. You turn. Nothing.',3],['YOU','Inside the school, an emergency light flickers beside the office. There is another rulebook there.',5]],
- office:[['YOU','The office is empty. A chalk handprint marks the last page of an open book.',4],['RULE 91','Crossing the fence does not end the game. Carry the chalk mark past the gate when the last bell rings.',7],['YOU','The bell begins. A shape moves behind the glass. Take the chalk and run.',5]],
+ office:[['YOU','The office is empty. A chalk handprint marks the last page of an open book.',4],['RULE 91','Crossing the fence does not end the game. Carry the chalk mark past the gate when the last bell rings.',7],['YOU','Beside the book, a piece of chalk sits inside a glass box. Its electric latch begins to hum.',5]],
+ blackout:[['YOU','The office light goes out. The glass box locks with a hard click.',4],['YOU','A voice drifts from the closed canteen. It sounds exactly like you.',4],['RULE 94','Never follow your own voice. What answers from the dark has already learned your name.',7],['YOU','The chalk box shares the canteen supply. Its breaker is outside, along the verandah. Leave the shutter closed.',6]],
+ canteen:[['YOUR VOICE','I’m still in here. Open the shutter.',4],['YOU','In the dark window, the tall creature runs behind you. Its reflection moves the wrong way.',5],['YOU','You glance back. The walkway is empty. In the glass, it is still running.',5],['YOU','The breaker handle is within reach. Keep your eyes on the switch. Do not answer the voice.',5]],
+ restored:[['YOU','You return to the office. The light is steady. The chalk box has clicked open.',4],['RULE 95','Once you take the chalk mark, leave before the last bell stops.',6],['YOU','Your reflection turns its head before you do. Take the chalk. Keep moving.',5]],
  ending:[['YOU','The chalk mark burns cold in your hand. This time, the street stays still.',4],['THE SPINNER','Good game.',5]]
 };
 
 export const explorationGoals={
  gate:{target:{x:18,z:74},radius:3,label:'Walk through the open school gate',hint:'Follow the streetlight beyond the fence.',next:'street',start:'gate'},
  office:{target:{x:-18,z:-10},radius:3,label:'Find the emergency light at the office',hint:'Return through the gate. Follow the compass towards the school.',next:'office',start:'outside'},
+ power:{target:{x:-9,z:-13},radius:2.5,label:'Restore power at the canteen supply breaker',hint:'Follow the verandah east from the office. The breaker is outside; keep the canteen shutter closed.',next:'canteen',start:'office',seconds:22},
+ chalk:{target:{x:-18,z:-10},radius:2.5,label:'Return to the unlocked chalk box',hint:'Head back along the verandah to the office. Ignore the voice behind the shutter.',next:'restored',start:'canteen',seconds:18},
  escape:{target:{x:18,z:74},radius:3,label:'Carry the chalk mark beyond the gate',hint:'Sprint. Keep the gate in sight.',next:'ending',start:'office',seconds:24}
+};
+// Selected hiding places are reached on foot; each route has its own travel budget.
+export const routeWalks={
+ bathroom:{target:{x:-20,z:29},radius:3,seconds:22,label:'Bathroom',hint:'Follow the west walkway south. Stop at the bathroom entrance.',next:'bathroom'},
+ bottom:{target:{x:41,z:58},radius:3,seconds:26,label:'Bottom oval',hint:'Cross the basketball court and continue beyond the far hoop.',next:'bottom'},
+ top:{target:{x:-24,z:-36},radius:3,seconds:24,label:'Top oval',hint:'Go around the west end of the classroom block, then head towards the trees.',next:'top'},
+ blue:{target:{x:5,z:8},radius:3,seconds:16,label:'Blue wall',hint:'Return to the courtyard. Go around the end of the blue wall if you approach from the ovals.',next:'blue'}
 };
 export function navigationHint(pose,target){const dx=target.x-pose.x,dz=target.z-pose.z;const angle=Math.atan2(-dx,-dz)-(pose.yaw??pose.rotation??0);return {distance:Math.hypot(dx,dz),angle:Math.atan2(Math.sin(angle),Math.cos(angle))};}
