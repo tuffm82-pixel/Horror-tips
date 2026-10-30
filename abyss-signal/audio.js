@@ -23,7 +23,7 @@ export function createAudio() {
   }
   async function start() {
     if(disposed)return;
-    if(context){await context.resume();return;}
+    if(context){try{await context.resume();}catch{}return;}
     const Constructor=globalThis.AudioContext||globalThis.webkitAudioContext;
     if(!Constructor)return;
     try {
@@ -70,6 +70,8 @@ export function createAudio() {
       case 'alarm': [0,.4,.8].forEach(delay=>tone(330,310,.29,.12,'triangle',delay));break;
       case 'scare': noise(1.3,.34,750,.8);tone(92,27,2.2,.3,'sawtooth');tone(441,129,1.4,.13,'triangle',.08);break;
       case 'death': noise(1.8,.34,480,.6);tone(70,19,2.8,.34,'sawtooth');tone(630,41,1.2,.1,'triangle');break;
+      case 'grab': noise(.32,.25,240,.7);tone(85,34,.45,.25);break;
+      case 'drag': noise(1.4,.20,190,1.1);tone(53,24,1.5,.15,'triangle');break;
       case 'whisper': [0,.16,.37,.64].forEach((delay,i)=>noise(.20,.08+i*.015,900+i*220,.8,delay));tone(87,73,1.8,.065);break;
       case 'win': [196,246.94,293.66,392].forEach((f,i)=>tone(f,f,2.3,.08,'sine',i*.35));break;
       default: noise(.5,.08,220);

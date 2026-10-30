@@ -8,7 +8,7 @@ for(const [tag,url] of [...html.matchAll(/<script\b[^>]*src="([^"]+)"[^>]*><\/sc
 }
 for(const [tag,url] of [...html.matchAll(/<link\b[^>]*href="([^"]+\.css)"[^>]*>/g)]){const css=await readFile(resolve(root,url),'utf8');html=html.replace(tag,()=>`<style>${css}</style>`);}
 html=html.replace(/<link\b[^>]*rel="(?:modulepreload|icon)"[^>]*>/g,'');
-const instructions='ABYSS SIGNAL — DOWNLOAD EDITION\r\n\r\nExtract this ZIP and open ABYSS SIGNAL.html in a desktop browser. No install needed.\r\nFor iPad use the hosted Safari link: https://tuffm82-pixel.github.io/Horror-tips/abyss-signal/\r\n\r\nWASD move / drag to look / E use / Shift run / H hide / Escape pause.\r\nTouch: left joystick, right swipe, USE, RUN, HIDE.\r\nComplete pumps, black box, relay, then escape. Checkpoints save on this device.\r\nAll graphics and sound are included; the downloaded game works offline.\r\n';
+const instructions='ABYSS SIGNAL — DOWNLOAD EDITION\r\n\r\nExtract this ZIP and open ABYSS SIGNAL.html in a desktop browser. No install needed.\r\nFor iPad use the hosted Safari link: https://tuffm82-pixel.github.io/Horror-tips/abyss-signal/\r\n\r\nWASD move / drag to look / E use / Shift run / H hide / Escape pause.\r\nTouch: left joystick, right swipe, USE, RUN, HIDE.\r\nComplete ten operations across eight rooms. Repair circuits, steady pressure, tune frequencies and open the archive. The capsule takes 45 seconds to prepare. Checkpoints save on this device.\r\nGraphics and sound effects are included; the downloaded game works offline. Spoken dialogue uses your device voices where available. Tap REPLAY RADIO to repeat a line.\r\n';
 function crc32(data){let c=0xffffffff;for(const n of data){c^=n;for(let i=0;i<8;i++)c=(c>>>1)^((c&1)?0xedb88320:0);}return(c^0xffffffff)>>>0;}
 const entries=[['ABYSS SIGNAL.html',html],['START HERE.txt',instructions]],local=[],central=[];let offset=0;
 for(const [name,content] of entries){const filename=Buffer.from(name),data=Buffer.from(content),packed=deflateRawSync(data),crc=crc32(data),header=Buffer.alloc(30),record=Buffer.alloc(46);
@@ -17,3 +17,4 @@ for(const [name,content] of entries){const filename=Buffer.from(name),data=Buffe
 }
 const directory=Buffer.concat(central),end=Buffer.alloc(22);end.writeUInt32LE(0x06054b50);end.writeUInt16LE(entries.length,8);end.writeUInt16LE(entries.length,10);end.writeUInt32LE(directory.length,12);end.writeUInt32LE(offset,16);
 await mkdir(`${root}/downloads`,{recursive:true});await writeFile(`${root}/downloads/ABYSS-SIGNAL.zip`,Buffer.concat([...local,directory,end]));await mkdir('test-results',{recursive:true});await writeFile('test-results/ABYSS SIGNAL.html',html);console.log(`ABYSS SIGNAL: standalone HTML ${Buffer.byteLength(html)} bytes; offline ZIP packaged.`);
+

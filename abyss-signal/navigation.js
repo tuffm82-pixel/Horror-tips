@@ -1,9 +1,9 @@
 import {isWalkable} from './world.js';
-const width=61,height=101,count=width*height,valid=new Uint8Array(count),fields=new Map();
-const point=id=>({x:(id%width)/2-15,z:Math.floor(id/width)/2-42});
+const width=101,height=233,count=width*height,valid=new Uint8Array(count),fields=new Map();
+const point=id=>({x:(id%width)/2-25,z:Math.floor(id/width)/2-108});
 for(let id=0;id<count;id++){const p=point(id);valid[id]=isWalkable(p.x,p.z)?1:0;}
 function nearest(p){
- const cx=Math.max(0,Math.min(width-1,Math.round((p.x+15)*2))),cz=Math.max(0,Math.min(height-1,Math.round((p.z+42)*2)));
+ const cx=Math.max(0,Math.min(width-1,Math.round((p.x+25)*2))),cz=Math.max(0,Math.min(height-1,Math.round((p.z+108)*2)));
  let best=-1,distance=Infinity;
  for(let z=Math.max(0,cz-4);z<=Math.min(height-1,cz+4);z++)for(let x=Math.max(0,cx-4);x<=Math.min(width-1,cx+4);x++){const id=z*width+x;if(!valid[id])continue;const q=point(id),d=(p.x-q.x)**2+(p.z-q.z)**2;if(d<distance){best=id;distance=d;}}
  return best;

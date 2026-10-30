@@ -1,0 +1,4 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {createTaskState} from './tasks.js';
+test('three circuit banks require their own matching switches',()=>{const s=createTaskState('circuits');s.act('submit');assert(s.mistake);for(const target of [5,3,6]){for(let bit=0;bit<3;bit++)if(target&(1<<bit))s.act(bit);s.act('submit');}assert(s.done);});
+test('pressure requires sustained control and frequency requires three stable locks',()=>{const p=createTaskState('pressure');for(let i=0;i<120;i++){p.held=p.value<.5;p.update(.1);}assert(p.done);const f=createTaskState('frequency');for(let i=0;i<3;i++){f.value=f.target();for(let j=0;j<16;j++)f.update(.1);}assert(f.done);});
+test('an incorrect archive code does not complete the task',()=>{const s=createTaskState('code');for(const digit of '1111')s.act(digit);s.act('submit');assert(!s.done);for(const digit of '1709')s.act(digit);s.act('submit');assert(s.done);});

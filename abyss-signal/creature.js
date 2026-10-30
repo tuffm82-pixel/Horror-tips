@@ -130,10 +130,10 @@ export function createCreature() {
   }
   // Highest lure is 2.69m. All positions remain local to the game-controlled root.
   let gait=0;
-  function update(dt,time,{speed=0,aggression=0}={}) {
+  function update(dt,time,{speed=0,aggression=0,attackProgress=0}={}) {
     const a=THREE.MathUtils.clamp(aggression,0,1), stride=Math.min(Math.abs(speed),4);
     gait+=Math.min(dt,.1)*(stride>0.05?2.4+stride*1.1:.55);
-    torso.position.y=1.47+Math.sin(gait*2)*.018*Math.min(stride,1)+Math.sin(time*1.3)*.009;
+    torso.position.set(0,1.47+Math.sin(gait*2)*.018*Math.min(stride,1)+Math.sin(time*1.3)*.009,.1);
     torso.rotation.set(-.08-a*.18,Math.sin(time*.43)*.025,Math.sin(gait)*.025);
     head.rotation.set(.08+Math.sin(time*.8)*.045+a*.10,Math.sin(time*.31)*.19,Math.sin(time*.62)*.075);
     jaw.rotation.x=.08+Math.sin(time*1.7)*.035+a*.5;
@@ -145,10 +145,35 @@ export function createCreature() {
     for(const {upper,elbow,hand,side} of arms) {
       upper.rotation.x=-Math.sin(gait+(side===1?Math.PI:0))*.18*Math.min(stride,1.5)-a*.55;
       upper.rotation.z=side*(.06+a*.11); elbow.rotation.x=-.16-a*.18+Math.sin(time*1.9+side)*.04;
-      hand.rotation.z=Math.sin(time*1.35+side)*.07;
+      hand.rotation.set(0,0,Math.sin(time*1.35+side)*.07);
     }
     tendrils.forEach((node,i)=>{node.rotation.x=Math.sin(time*1.3+i)*.13;node.rotation.z=Math.sin(time*.9+i)*.1;});
     materials.glow.emissiveIntensity=1.2+Math.sin(time*2.2)*.2+a;
+    const p=THREE.MathUtils.clamp(Number.isFinite(attackProgress)?attackProgress:0,0,1);
+    if(p>0){
+      const smooth=(start,end)=>THREE.MathUtils.smoothstep(p,start,end);
+      const windup=smooth(0,.18)*(1-smooth(.18,.38));
+      const reach=smooth(.18,.45), bite=smooth(.40,.70), drag=smooth(.70,1);
+      // Root movement is still controlled by the game. These local poses carry
+      // anticipation, contact and the downward pull without teleporting the actor.
+      torso.position.y-=windup*.12+drag*.47;
+      torso.position.z+=windup*.12-reach*.30+drag*.14;
+      torso.rotation.set(-.10+windup*.14-reach*.40-drag*.22,Math.sin(p*11)*.055,-windup*.08+drag*.09);
+      head.rotation.set(.08-windup*.24+bite*.22,Math.sin(p*13)*.08*(1-drag),-.12-reach*.08);
+      jaw.rotation.x=.12+smooth(.12,.43)*1.05-smooth(.67,.83)*.72;
+      for(const {upper,elbow,hand,side} of arms){
+        // Positive shoulder X moves hands towards the creature's -Z forward.
+        upper.rotation.set(-windup*.35+reach*1.22-drag*.52,side*reach*.12,side*(.11+windup*.20-reach*.07));
+        elbow.rotation.x=windup*.45+reach*.27+drag*.35;
+        hand.rotation.set(-reach*.23+drag*.36,-side*reach*.17,side*(.08+drag*.20));
+      }
+      for(const {hip,knee,side} of legs){
+        hip.rotation.x=side*.13*reach-windup*.10-drag*.18;
+        knee.rotation.x=.12*windup+drag*.36;
+      }
+      tendrils.forEach((node,i)=>{node.rotation.x-=reach*.35;node.rotation.z+=Math.sin(p*18+i)*.13;});
+      materials.glow.emissiveIntensity=2.1+reach*1.2-drag*.6;
+    }
   }
   update(0,0);
   return {group,update,dispose(){geometryPool.forEach(g=>g.dispose());materialPool.forEach(m=>m.dispose());bump.dispose();}};
