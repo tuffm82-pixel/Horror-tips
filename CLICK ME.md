@@ -1,5 +1,11 @@
 # CLICK ME
 
+## [▶ PLAY ABYSS SIGNAL — NEW IPAD HORROR GAME](https://tuffm82-pixel.github.io/Horror-tips/abyss-signal/)
+
+Escape a deep-sea research station while something follows your footsteps. Open in Safari on iPad, turn sideways, and tap **DESCEND**. Left thumb to move, right swipe to look.
+
+[Download ABYSS SIGNAL for offline desktop play](https://tuffm82-pixel.github.io/Horror-tips/abyss-signal/downloads/ABYSS-SIGNAL.zip) · [Controls and details](abyss-signal/README.md)
+
 ## [▶ PLAY HORROR TIPS IN YOUR BROWSER](https://tuffm82-pixel.github.io/Horror-tips/)
 
 No installation needed. Open the link and choose **Campaign**.

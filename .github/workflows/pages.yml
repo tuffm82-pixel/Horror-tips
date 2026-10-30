@@ -25,6 +25,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build
       - run: node scripts/package-download.mjs
+      - run: node --test abyss-signal/campaign.test.mjs abyss-signal/navigation.test.mjs
+      - run: pnpm exec vite build --config abyss-signal/vite.config.js
+      - run: node abyss-signal/package-download.mjs
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
@@ -39,3 +42,4 @@ jobs:
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
+
